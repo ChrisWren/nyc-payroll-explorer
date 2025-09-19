@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NYC Payroll Explorer
 
-## Getting Started
+Interactive explorer for the New York City government payroll dataset. The app is written with the Next.js App Router, but it can be exported to a fully static bundle so it can be hosted on GitHub Pages.
 
-First, run the development server:
+## Prerequisites
+
+Install dependencies once:
+
+```bash
+npm install
+```
+
+## Local Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The development server runs at http://localhost:3000 and hot-reloads as you edit files in `src`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Static Export
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The project is configured with `output: "export"`, so a production build is completely static:
 
-## Learn More
+```bash
+npm run export
+```
 
-To learn more about Next.js, take a look at the following resources:
+The static bundle is created in the `out/` directory.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Exporting Directly To The Repository Root
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+To publish on GitHub Pages (or any static host that expects `index.html` and accompanying assets at the repository root), run:
 
-## Deploy on Vercel
+```bash
+npm run export:root
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This command runs a production build and copies the contents of `out/` into the project root, overwriting the previous `index.html`, `_next/`, `404.html`, `robots.txt`, and `sitemap.xml` if they exist. Commit those generated files (alongside the `_next/` directory) to the branch that GitHub Pages serves from.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Serving From A Sub-Path
+
+If your GitHub Pages site is served from a sub-directory (for example `https://username.github.io/nyc-payroll-explorer/`), set a base path before exporting:
+
+```bash
+export NEXT_PUBLIC_BASE_PATH="/nyc-payroll-explorer"
+npm run export:root
+```
+
+The generated HTML will reference assets relative to that base path.
+
+## Optional Environment Variables
+
+| Variable | Purpose |
+| --- | --- |
+| `NEXT_PUBLIC_BASE_PATH` | Prefix for assets when hosting under a sub-path (see above). Leave unset when hosting at the domain root. |
+| `NEXT_PUBLIC_PAYROLL_API_BASE` | Override the Socrata endpoint for payroll data. Defaults to `https://data.cityofnewyork.us/resource/k397-673e.json`. |
+| `NEXT_PUBLIC_JOB_SUMMARY_ENDPOINT` | Optional endpoint that returns `{ summary: string }` for a job title. When omitted the modal shows "Summary unavailable" and no network call is made. |
+
+## Linting
+
+```bash
+npm run lint
+```
+
+## Notes
+
+- API routes have been removed so the app works as a pure static bundle. All data is fetched directly from the NYC Socrata API at runtime.
+- Job summaries are disabled by default in static mode. Provide a custom `NEXT_PUBLIC_JOB_SUMMARY_ENDPOINT` if you have a service that can return summaries.
