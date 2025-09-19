@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import InfoTip from '@/components/InfoTip';
 import Loading from '@/components/Loading';
 import JobDetailsModal from '@/components/JobDetailsModal';
 import { formatSalaryRange } from '@/lib/formatSalary';
@@ -341,8 +342,11 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen w-full flex-col items-center justify-between px-6 pb-16 pt-24 sm:px-10 sm:pb-20 sm:pt-28 lg:px-24 lg:pb-24 lg:pt-32">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <h1 className="mb-8 text-center text-3xl font-bold sm:text-4xl lg:text-5xl">NYC Payroll Explorer</h1>
+      <div className="z-10 w-full max-w-5xl font-mono text-sm">
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-3 text-center lg:justify-start">
+          <h1 className="text-center text-3xl font-bold sm:text-4xl lg:text-5xl">NYC Payroll Explorer</h1>
+          <InfoTip />
+        </div>
       </div>
 
       <div className="mb-6 w-full max-w-5xl self-start">
