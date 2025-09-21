@@ -28,36 +28,26 @@ npm run export
 
 The static bundle is created in the `out/` directory.
 
-### Exporting Directly To The Repository Root
+### Exporting To The Repository Root
 
-To publish on GitHub Pages (or any static host that expects `index.html` and accompanying assets at the repository root), run:
+If you want the generated HTML, `_next/` assets, and metadata files to live directly in the project root (for example when serving from a very simple static host), run:
 
 ```bash
 npm run export:root
 ```
 
-This command runs a production build, automatically selects the correct base path for GitHub Pages (or honours `NEXT_PUBLIC_BASE_PATH` when you set it), and copies the contents of `out/` into the project root. The previous `index.html`, `_next/`, `404.html`, `robots.txt`, and `sitemap.xml` are replaced. Commit the generated files (alongside the `_next/` directory) to the branch that GitHub Pages serves from.
+This command runs a production build and copies the contents of `out/` into the root directory, replacing any existing `index.html`, `_next/`, `404.html`, `robots.txt`, and `sitemap.xml`.
 
 ### Serving From A Sub-Path
 
-When the repository is deployed from a project page (for example `https://username.github.io/nyc-payroll-explorer/`), the build and export scripts now infer the base path automatically. If you need to override it, export `NEXT_PUBLIC_BASE_PATH` before running the build:
+When hosting the site under a sub-directory, set `NEXT_PUBLIC_BASE_PATH` before exporting so asset URLs are prefixed correctly:
 
 ```bash
 export NEXT_PUBLIC_BASE_PATH="/custom-base"
 npm run export:root
 ```
 
-Leave the variable unset for user/organisation pages such as `https://username.github.io/`.
-
-## GitHub Pages Deployment
-
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that publishes the static bundle to GitHub Pages whenever `main` is updated or the workflow is triggered manually.
-
-1. In the repository settings, open **Pages** and set the source to **GitHub Actions**.
-2. Push to `main` (or trigger the workflow manually under **Actions → Deploy static site to GitHub Pages**).
-3. The workflow builds `out/` using `npm run export`, infers the correct base path from the repository name, and deploys the result to the `gh-pages` environment.
-
-If you maintain a fork or want to deploy from a different branch, adjust the workflow triggers accordingly.
+Leave the variable unset when deploying to the domain root.
 
 ## Optional Environment Variables
 

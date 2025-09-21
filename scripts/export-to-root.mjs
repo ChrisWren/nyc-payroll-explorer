@@ -48,50 +48,13 @@ async function copyDir(source, destination) {
   }
 }
 
-const normalizeBasePath = (value) => {
-  if (!value) {
-    return '';
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-  const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-  return withLeadingSlash.replace(/\/+$/, '');
-};
-
-const inferGithubPagesBasePath = () => {
-  if (process.env.GITHUB_ACTIONS !== 'true') {
-    return '';
-  }
-
-  const repository = process.env.GITHUB_REPOSITORY ?? '';
-  const [owner, repo] = repository.split('/');
-  if (!repo) {
-    return '';
-  }
-
-  const isUserSite = repo.toLowerCase() === `${(owner ?? '').toLowerCase()}.github.io`;
-  return isUserSite ? '' : `/${repo}`;
-};
-
 async function main() {
   const projectRoot = process.cwd();
   if (!existsSync(path.join(projectRoot, 'node_modules'))) {
     throw new Error('node_modules directory is missing. Install dependencies before exporting.');
   }
 
-  const resolvedBasePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH) || inferGithubPagesBasePath();
-  const childEnv = { ...process.env };
-  if (resolvedBasePath) {
-    childEnv.NEXT_PUBLIC_BASE_PATH = resolvedBasePath;
-    console.log(`[export-to-root] Using base path: ${resolvedBasePath}`);
-  } else {
-    delete childEnv.NEXT_PUBLIC_BASE_PATH;
-    console.log('[export-to-root] Using base path: <root>');
-  }
-
-  await run('npx', ['next', 'build'], { env: childEnv });
+  await run('npx', ['next', 'build']);
 
   const outDir = path.join(projectRoot, 'out');
   if (!(await pathExists(outDir))) {
