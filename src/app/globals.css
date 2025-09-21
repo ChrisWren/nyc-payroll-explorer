@@ -3,8 +3,10 @@
 @tailwind utilities;
 
 :root {
-  --background: #F7E1CA;
-  --foreground: #837189;
+  --background: #f7e1ca;
+  --foreground: #2f2435;
+  --foreground-muted: #3d3047;
+  --foreground-subtle: #53435f;
 }
 
 body {
@@ -12,6 +14,33 @@ body {
   color: var(--foreground);
   font-family: Didot, serif;
   padding: clamp(1rem, 4vw, 2.5rem);
+}
+
+a {
+  color: inherit;
+}
+
+.text-gray-600,
+.text-gray-500,
+.text-gray-400,
+.text-muted {
+  color: var(--foreground-muted) !important;
+}
+
+.text-gray-900,
+.text-dark,
+body,
+p,
+span,
+li,
+label {
+  color: var(--foreground) !important;
+}
+
+small,
+.text-xs,
+.text-secondary {
+  color: var(--foreground-subtle) !important;
 }
 
 .markdown-content {
