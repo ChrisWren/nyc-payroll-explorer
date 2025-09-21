@@ -32,6 +32,10 @@ export default function JobDetailsModal({
   error,
   onClose,
 }: JobDetailsModalProps) {
+  const normalizedSummary = typeof summary === 'string' ? summary.trim() : null;
+  const hasSummary = Boolean(normalizedSummary);
+  const showUnavailable = !loading && !error && !hasSummary && summary === null;
+
   return (
     <Modal show onHide={onClose} centered size="lg" backdrop="static" scrollable>
       <Modal.Header closeButton className="bg-dark text-warning border-0">
@@ -47,19 +51,18 @@ export default function JobDetailsModal({
             💵 {formatSalaryRange(payMin, payMax)}
           </span>
         </div>
-        {loading && <p className="mb-0">Loading...</p>}
         {error && <p className="text-danger fw-semibold">Error: {error}</p>}
-        {!loading && !error && (
-          <div>
-            {summary !== null ? (
-              <div className="markdown-content">
-                <ReactMarkdown>{summary}</ReactMarkdown>
-              </div>
-            ) : (
-              <p>Summary unavailable.</p>
-            )}
+        {hasSummary && (
+          <div className="markdown-content">
+            <ReactMarkdown>{normalizedSummary ?? ''}</ReactMarkdown>
           </div>
         )}
+        {loading && !error && (
+          <p className={`mb-0 ${hasSummary ? 'mt-3 text-sm text-gray-500 fst-italic' : ''}`}>
+            {hasSummary ? 'Fetching more details…' : 'Loading...'}
+          </p>
+        )}
+        {showUnavailable && <p>Summary unavailable.</p>}
       </Modal.Body>
       <Modal.Footer className="bg-dark border-0">
         <button onClick={onClose} className={retroButton}>

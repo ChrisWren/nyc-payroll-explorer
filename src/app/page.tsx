@@ -8,7 +8,7 @@ import { formatSalaryRange } from '@/lib/formatSalary';
 
 const PAYROLL_API_BASE =
   process.env.NEXT_PUBLIC_PAYROLL_API_BASE ?? 'https://data.cityofnewyork.us/resource/k397-673e.json';
-const JOB_SUMMARY_ENDPOINT = process.env.NEXT_PUBLIC_JOB_SUMMARY_ENDPOINT ?? '';
+const JOB_SUMMARY_ENDPOINT = process.env.NEXT_PUBLIC_JOB_SUMMARY_ENDPOINT ?? '/api/job-summary';
 
 const retroButtonBase =
   'relative inline-flex items-center rounded-md border-2 border-black bg-gradient-to-r from-amber-300 via-pink-400 to-lime-300 text-black font-extrabold uppercase tracking-wide shadow-[4px_4px_0_0_#000] transition-transform duration-150 hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#000] focus:outline-none focus:ring-4 focus:ring-black/40 active:translate-y-0 active:shadow-[2px_2px_0_0_#000]';
@@ -68,6 +68,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [jobDetailsModal, setJobDetailsModal] = useState<JobDetailsModalState>({ isOpen: false });
   const jobDetailsRequestId = useRef(0);
+  const jobDetailsAbortController = useRef<AbortController | null>(null);
   const [isAgencyMenuOpen, setIsAgencyMenuOpen] = useState(false);
   const agencyMenuRef = useRef<HTMLDivElement | null>(null);
   const [agencyFilter, setAgencyFilter] = useState('');
@@ -199,7 +200,13 @@ export default function Home() {
   const handleViewDetails = (title: string, agency: string, payMin: number, payMax: number, count: number) => {
     const requestId = jobDetailsRequestId.current + 1;
     jobDetailsRequestId.current = requestId;
-    console.log('Viewing job details', { title, agency, payMin, payMax, count });
+
+    jobDetailsAbortController.current?.abort();
+
+    const shouldFetchSummary = JOB_SUMMARY_ENDPOINT !== '';
+    const abortController = shouldFetchSummary ? new AbortController() : null;
+    jobDetailsAbortController.current = abortController;
+
     setJobDetailsModal({
       isOpen: true,
       title,
@@ -207,94 +214,105 @@ export default function Home() {
       payMin,
       payMax,
       count,
-      summary: null,
-      loading: true,
+      summary: shouldFetchSummary ? '' : null,
+      loading: shouldFetchSummary,
       error: null,
     });
 
-    if (!JOB_SUMMARY_ENDPOINT) {
-      setJobDetailsModal({
-        isOpen: true,
-        title,
-        agency,
-        payMin,
-        payMax,
-        count,
-        summary: null,
-        loading: false,
-        error: null,
-      });
+    if (!shouldFetchSummary || !abortController) {
       return;
     }
 
-    const fetchDetails = async () => {
+    const streamSummary = async () => {
       try {
-        const summaryUrl = new URL(JOB_SUMMARY_ENDPOINT, window.location.origin);
-        summaryUrl.searchParams.set('title', title);
-        if (agency) {
-          summaryUrl.searchParams.set('agency', agency);
-        }
+        const response = await fetch(JOB_SUMMARY_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ title, agency, payMin, payMax, count }),
+          signal: abortController.signal,
+        });
 
-        const response = await fetch(summaryUrl.toString());
         if (!response.ok) {
-          let message = 'Failed to fetch job details';
-          try {
-            const errorBody = await response.json();
-            if (errorBody?.error) {
-              message = errorBody.error;
-            }
-          } catch {
-            // Non-JSON error bodies can be ignored
+          throw new Error(`Failed to fetch job summary (status ${response.status})`);
+        }
+        if (!response.body) {
+          throw new Error('Summary response did not include a readable stream');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aggregated = '';
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) {
+            break;
           }
-          throw new Error(message);
-        }
-
-        const result: unknown = await response.json();
-        let summary: string | null = null;
-        if (
-          typeof result === 'object' &&
-          result !== null &&
-          'summary' in result &&
-          typeof (result as { summary?: unknown }).summary === 'string'
-        ) {
-          summary = (result as { summary: string }).summary;
-        }
-
-        if (jobDetailsRequestId.current === requestId) {
-          setJobDetailsModal({
-            isOpen: true,
-            title,
-            agency,
-            payMin,
-            payMax,
-            count,
-            summary,
-            loading: false,
-            error: null,
+          aggregated += decoder.decode(value, { stream: true });
+          if (jobDetailsRequestId.current !== requestId) {
+            return;
+          }
+          const partial = aggregated.replace(/\u0000/g, '');
+          setJobDetailsModal((previous) => {
+            if (!previous.isOpen || jobDetailsRequestId.current !== requestId) {
+              return previous;
+            }
+            return {
+              ...previous,
+              summary: partial.trimStart(),
+              loading: true,
+            };
           });
         }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'An unknown error occurred';
-        if (jobDetailsRequestId.current === requestId) {
-          setJobDetailsModal({
-            isOpen: true,
-            title,
-            agency,
-            payMin,
-            payMax,
-            count,
-            summary: null,
+
+        aggregated += decoder.decode();
+        if (jobDetailsRequestId.current !== requestId) {
+          return;
+        }
+        const finalSummary = aggregated.replace(/\u0000/g, '').trim();
+        setJobDetailsModal((previous) => {
+          if (!previous.isOpen || jobDetailsRequestId.current !== requestId) {
+            return previous;
+          }
+          return {
+            ...previous,
+            summary: finalSummary || null,
             loading: false,
+          };
+        });
+      } catch (error) {
+        if (jobDetailsRequestId.current !== requestId) {
+          return;
+        }
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Failed to load summary';
+        setJobDetailsModal((previous) => {
+          if (!previous.isOpen || jobDetailsRequestId.current !== requestId) {
+            return previous;
+          }
+          return {
+            ...previous,
             error: message,
-          });
+            loading: false,
+          };
+        });
+      } finally {
+        if (jobDetailsAbortController.current === abortController) {
+          jobDetailsAbortController.current = null;
         }
       }
     };
 
-    void fetchDetails();
+    void streamSummary();
   };
 
   const handleCloseModal = () => {
+    jobDetailsAbortController.current?.abort();
+    jobDetailsAbortController.current = null;
     jobDetailsRequestId.current += 1;
     setJobDetailsModal({ isOpen: false });
   };
